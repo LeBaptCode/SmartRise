@@ -1,4 +1,4 @@
 # SmartRise
 
-SmartRise's app for Conf' PEIP 2024
+Application SmartRise pour la Conférence PEIPA2 2024 Polytech Nantes.
 
