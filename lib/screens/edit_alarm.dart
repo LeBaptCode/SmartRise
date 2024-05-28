@@ -1,15 +1,12 @@
 import 'dart:io';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
-import 'package:path/path.dart' as path;
 import 'package:alarm/alarm.dart';
 import 'package:alarm/model/alarm_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_popup_card/flutter_popup_card.dart';
 import 'package:flutter_sound_lite/flutter_sound.dart';
-//import 'package:flutter_sound_lite/public/flutter_sound_player.dart';
-import 'package:glassmorphism/glassmorphism.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:progressive_time_picker/progressive_time_picker.dart';
@@ -98,15 +95,19 @@ class _ExampleAlarmEditScreenState extends State<ExampleAlarmEditScreen> {
   }
 
   Future<void> _initializeRingtones() async {
-    assetAudioName = await _loadAssetAudio();
-    assetAudioPath = await findSoundFile(assetAudioName);
-    await loadRingtones();
-    Future.delayed(const Duration(seconds: 1), () {
+    try {
+      assetAudioName = await _loadAssetAudio();
+      assetAudioPath = await findSoundFile(assetAudioName);
+      await loadRingtones();
+    } catch (e) {
+      print('Error initializing ringtones: $e');
+    } finally {
       setState(() {
         isLoading = false;
       });
-    });
+    }
   }
+
 
   loadRingtones() async {
     const channel = MethodChannel('flutter_channel');
@@ -192,6 +193,7 @@ class _ExampleAlarmEditScreenState extends State<ExampleAlarmEditScreen> {
   }
 
   void saveAlarm() async {
+    HapticFeedback.selectionClick();
     bool isGranted =
         await checkAndroidNotificationPermission(); // Vérifier la permission de notification
     if (!isGranted) {
@@ -214,15 +216,16 @@ class _ExampleAlarmEditScreenState extends State<ExampleAlarmEditScreen> {
     int timeRemainingInSeconds = selectedDateTime
         .difference(DateTime.now())
         .inSeconds; // Calculer le temps restant en secondes
-    ble_utils.sendMessageToDevice(connectedDevice, timeCharacteristicUUID,
+    BleUtils.sendMessageToDevice(connectedDevice, timeCharacteristicUUID,
         timeRemainingInSeconds.toString());
   }
 
   void deleteAlarm() {
+    HapticFeedback.selectionClick();
     Alarm.stop(widget.alarmSettings!.id).then((res) {
       if (res) Navigator.pop(context, true);
     });
-    ble_utils.sendMessageToDevice(connectedDevice, timeCharacteristicUUID,
+    BleUtils.sendMessageToDevice(connectedDevice, timeCharacteristicUUID,
         ""); // Effacer l'heure de réveil
     print("Alarme supprimée ");
   }
@@ -285,7 +288,10 @@ class _ExampleAlarmEditScreenState extends State<ExampleAlarmEditScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               TextButton(
-                onPressed: () => Navigator.pop(context, false),
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.pop(context, false);
+                } ,
                 style: creating
                     ? ButtonStyle(
                         shape: WidgetStateProperty.all(
@@ -393,7 +399,10 @@ class _ExampleAlarmEditScreenState extends State<ExampleAlarmEditScreen> {
                 inactiveTrackColor: AppColors.background,
                 trackOutlineColor:
                     WidgetStateProperty.all(Colors.transparent),
-                onChanged: (value) => setState(() => loopAudio = value),
+                onChanged: (value) {
+                  HapticFeedback.selectionClick();
+                  setState(() => loopAudio = value);
+                },
               ),
             ],
           ),
@@ -413,8 +422,12 @@ class _ExampleAlarmEditScreenState extends State<ExampleAlarmEditScreen> {
                 activeTrackColor: AppColors.blueTextColor,
                 inactiveTrackColor: AppColors.background,
                 trackOutlineColor:
-                    MaterialStateProperty.all(Colors.transparent),
-                onChanged: (value) => setState(() => vibrate = value),
+                    WidgetStateProperty.all(Colors.transparent),
+                //TODO : Remove vibration from the alarm sound' file
+                onChanged: (value) {
+                  HapticFeedback.selectionClick();
+                  setState(() => vibrate = value);
+                  },
               ),
             ],
           ),
@@ -447,6 +460,7 @@ class _ExampleAlarmEditScreenState extends State<ExampleAlarmEditScreen> {
                           splashFactory: NoSplash.splashFactory,
                         ),
                         onPressed: () async {
+                          HapticFeedback.selectionClick();
                           var selectedRingtone = await showPopupCard(
                             context: context,
                             builder: (context) {
@@ -507,7 +521,7 @@ class _ExampleAlarmEditScreenState extends State<ExampleAlarmEditScreen> {
                           alignment: Alignment.centerRight,
                           dropdownColor: AppColors.primary,
                           borderRadius: BorderRadius.circular(10.0),
-                          icon: Icon(Icons.arrow_drop_down_rounded,
+                          icon: const Icon(Icons.arrow_drop_down_rounded,
                               color: AppColors.blueTextColor),
                           iconSize: 24,
                           elevation: 16,
@@ -542,7 +556,7 @@ class _ExampleAlarmEditScreenState extends State<ExampleAlarmEditScreen> {
                                         ),
                                         child: Text(
                                           ringtone.name,
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                               fontSize: 18,
                                               color: AppColors
                                                   .blueTextColor), // Style du texte
@@ -571,9 +585,11 @@ class _ExampleAlarmEditScreenState extends State<ExampleAlarmEditScreen> {
                 activeTrackColor: AppColors.blueTextColor,
                 inactiveTrackColor: AppColors.background,
                 trackOutlineColor:
-                    MaterialStateProperty.all(Colors.transparent),
-                onChanged: (value) =>
-                    setState(() => volume = value ? 0.5 : null),
+                    WidgetStateProperty.all(Colors.transparent),
+                onChanged: (value) {
+                  HapticFeedback.selectionClick();
+                  setState(() => volume = value ? 0.5 : null);
+                },
               ),
             ],
           ),
@@ -617,7 +633,7 @@ class _ExampleAlarmEditScreenState extends State<ExampleAlarmEditScreen> {
             TextButton(
               onPressed: deleteAlarm,
               style: ButtonStyle(
-                shape: MaterialStateProperty.all(
+                shape: WidgetStateProperty.all(
                   RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                     side: const BorderSide(

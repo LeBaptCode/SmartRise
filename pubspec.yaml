@@ -30,13 +30,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  flutter_localizations:
+    sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
   permission_handler: ^11.1.0
-  intl: ^0.19.0
+  intl: any
   progressive_time_picker: ^1.0.0
   alarm : ^3.0.8
   easy_date_timeline: ^1.0.4
@@ -53,6 +54,9 @@ dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_native_splash: ^2.4.0
   loading_animation_widget: ^1.2.1
+  flutter_localization: ^0.2.0
+  url_launcher: ^6.2.6
+  lottie: ^3.1.2
 
 flutter_launcher_icons:
   android: true
@@ -110,7 +114,11 @@ flutter:
     - assets/alarms/star_wars.mp3
     - assets/alarms/marimba.mp3
     - assets/images/background.png
+    - assets/images/illustration.png
     - assets/icon/splash.png
+    - assets/icon/brand.png
+    - assets/lottie/bluetooth.json
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

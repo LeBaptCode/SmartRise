@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../ressources/app_colors.dart';
 
@@ -8,11 +9,11 @@ class ExampleAlarmTile extends StatelessWidget {
   final void Function()? onDismissed;
 
   const ExampleAlarmTile({
-    Key? key,
+    super.key,
     required this.title,
     required this.onPressed,
     this.onDismissed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +23,7 @@ class ExampleAlarmTile extends StatelessWidget {
             ? DismissDirection.endToStart
             : DismissDirection.none,
         background: Container(
-          color: Colors.red,
+          color: AppColors.cancelTextColor,
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 30),
           child: const Icon(
@@ -31,7 +32,7 @@ class ExampleAlarmTile extends StatelessWidget {
             color: AppColors.mainTextColor,
           ),
         ),
-        onDismissed: (_) => onDismissed?.call(),
+        onDismissed: (_) => {onDismissed?.call()},
         child:
         RawMaterialButton(
           onPressed: onPressed,

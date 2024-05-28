@@ -1,8 +1,8 @@
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:progressive_time_picker/progressive_time_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_rise/screens/home.dart';
 import 'package:smart_rise/ressources/app_ressources.dart';
 
@@ -37,10 +37,10 @@ class TimeScheduleWidget extends StatefulWidget {
   final Function(PickedTime, PickedTime, bool?) updateLabels;
 
   @override
-  _TimeScheduleWidgetState createState() => _TimeScheduleWidgetState();
+  TimeScheduleWidgetState createState() => TimeScheduleWidgetState();
 }
 
-class _TimeScheduleWidgetState extends State<TimeScheduleWidget> {
+class TimeScheduleWidgetState extends State<TimeScheduleWidget> {
   late PickedTime intervalBedTime;
   @override
   void initState() {

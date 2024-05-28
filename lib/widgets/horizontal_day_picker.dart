@@ -2,21 +2,33 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:easy_date_timeline/easy_date_timeline.dart';
+import 'package:flutter/services.dart';
 import 'package:glassmorphism/glassmorphism.dart';
 import 'package:flutter_popup_card/flutter_popup_card.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smart_rise/utils.dart';
 import 'package:smart_rise/widgets/shortSleepChartUI.dart';
 import 'package:smart_rise/ressources/app_ressources.dart';
 import '../screens/stats.dart';
 
-class HorizontalDayPicker extends StatelessWidget {
+class HorizontalDayPicker extends StatefulWidget {
+
+  HorizontalDayPicker({super.key});
+
+  @override
+  State<HorizontalDayPicker> createState() => _HorizontalDayPickerState();
+}
+
+class _HorizontalDayPickerState extends State<HorizontalDayPicker> {
   //TODO : Modifier cette date lors de la première utilisation de l'application
   final firstUseDate = DateTime(2024,01,01);
 
   final List<int> _sleepRecord = [3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]
   ;
 
-  HorizontalDayPicker({super.key});
+  DateTime? initialDateTime;
+  bool _isFirstUse = true;
 
   List<int> generateSleepPhases() {
     // Générer 24 heures de phases de sommeil aléatoires
@@ -25,11 +37,37 @@ class HorizontalDayPicker extends StatelessWidget {
     return phases;
   }
 
+  Future<void> _loadInitialDate() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool? isFirstUse = prefs.getBool('isFirstUse') ?? true;
+
+    if (isFirstUse) {
+      DateTime now = DateTime.now();
+      initialDateTime = DateTime(now.year, now.month, now.day);
+
+      await prefs.setBool('isFirstUse', false);
+      await prefs.setString('initialDateTime', initialDateTime!.toIso8601String());
+    } else {
+      String? dateString = prefs.getString('initialDateTime');
+      if (dateString != null) {
+        initialDateTime = DateTime.parse(dateString);
+      }
+    }
+
+    setState(() {
+      _isFirstUse = false;
+    });
+  }
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialDate();
+  }
+
   @override
   Widget build(BuildContext context) {
     return EasyInfiniteDateTimeLine(
-      firstDate: firstUseDate,
-      //TODO: changer focus date ?
+      firstDate: initialDateTime!,
       focusDate: DateTime.now(),
       lastDate: DateTime.now(),
       onDateChange: (selectedDate) {
@@ -64,10 +102,14 @@ class HorizontalDayPicker extends StatelessWidget {
         vPadding: 15,
         hPadding: 5,
       ),
-      itemBuilder: (BuildContext context, String dayNumber, dayName, monthName,
-          fullDate, isSelected) {
+      itemBuilder: (BuildContext context, DateTime date, bool isSelected, void Function() onSelect) {
+        String dayNumber = date.day.toString();
+        String dayName = getDayName(date); // Vous devrez définir cette fonction
+        String monthName = getMonthName(date); // Vous devrez définir cette fonction
+
         return GestureDetector(
           onLongPress: () {
+            HapticFeedback.heavyImpact();
             showPopupCard(
               context: context,
               builder: (context) {
@@ -94,8 +136,9 @@ class HorizontalDayPicker extends StatelessWidget {
                       AppColors.mainTextColor.withOpacity(0.5),
                     ],
                   ),
-                  child: SleepGraph(sleepRecord: _sleepRecord,
-                    selectedDate : fullDate,
+                  child: SleepGraph(
+                    sleepRecord: _sleepRecord,
+                    selectedDate: date,
                   ),
                 );
               },
@@ -109,8 +152,7 @@ class HorizontalDayPicker extends StatelessWidget {
             child: ClipPath(
               clipper: const ShapeBorderClipper(
                 shape: ContinuousRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(30),
-                  ),
+                  borderRadius: BorderRadius.all(Radius.circular(30)),
                 ),
               ),
               child: Container(
@@ -125,22 +167,22 @@ class HorizontalDayPicker extends StatelessWidget {
                     Text(
                       monthName,
                       style: GoogleFonts.roboto(
-                        textStyle : TextStyle(
+                        textStyle: TextStyle(
                           fontSize: isSelected ? 14 : 12,
                           fontWeight: isSelected ? FontWeight.bold : null,
                           color: isSelected ? Colors.white : const Color(0xFF3CDAF7),
                         ),
-                      )
+                      ),
                     ),
                     Text(
                       dayNumber,
                       style: GoogleFonts.bungee(
-                        textStyle : TextStyle(
+                        textStyle: TextStyle(
                           fontSize: isSelected ? 20 : 18,
                           fontWeight: isSelected ? FontWeight.bold : null,
                           color: isSelected ? Colors.white : const Color(0xFF3CDAF7),
                         ),
-                    ),
+                      ),
                     ),
                     Text(
                       dayName,
@@ -155,10 +197,21 @@ class HorizontalDayPicker extends StatelessWidget {
             ),
           ),
         );
-
       },
     );
   }
+}
+String getDayName(DateTime date) {
+  List<String> dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  return dayNames[date.weekday - 1];
+}
+
+String getMonthName(DateTime date) {
+  List<String> monthNames = [
+    'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
+    'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'
+  ];
+  return monthNames[date.month - 1];
 }
 
 class ResponsiveOffset {

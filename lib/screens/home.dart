@@ -3,18 +3,20 @@ import 'dart:io';
 import 'package:alarm/alarm.dart';
 import 'package:alarm/model/alarm_settings.dart';
 import 'package:datetime_loop/datetime_loop.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:scrollable/exports.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_rise/screens/edit_alarm.dart';
 import 'package:smart_rise/screens/ring.dart';
 import 'package:smart_rise/screens/settings.dart';
-import 'package:smart_rise/screens/splash_screen.dart';
-import 'package:smart_rise/widgets/alarmTile.dart';
+import 'package:smart_rise/screens/onboarding.dart';
+import 'package:smart_rise/widgets/alarm_tile.dart';
 import 'package:smart_rise/widgets/ble_utils.dart';
+import 'package:smart_rise/widgets/empty_alarm.dart';
 import 'package:smart_rise/widgets/horizontal_day_picker.dart';
 import 'package:smart_rise/ressources/app_ressources.dart';
-import 'package:smart_rise/widgets/timeSchedule.dart';
+import 'package:smart_rise/widgets/time_schedule.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:progressive_time_picker/progressive_time_picker.dart';
@@ -61,16 +63,17 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
 
   DateTime _timeBeforeAlarm = DateTime.now();
 
-
   static StreamSubscription<AlarmSettings>? subscription;
 
   Future<void> _initData() async {
     loadAlarms(); // Charge les alarmes
-    subscription ??= Alarm.ringStream.stream.listen((alarmSettings) => navigateToRingScreen(alarmSettings)); // Souscrit au stream
+    subscription ??= Alarm.ringStream.stream.listen((alarmSettings) =>
+        navigateToRingScreen(alarmSettings)); // Souscrit au stream
     await _loadUserName(); // Attend le chargement du nom d'utilisateur
     await _loadUserAge(); // Attend le chargement de l'âge de l'utilisateur
     await _loadSavedIntervalBedTime(); // Attend le chargement de l'heure de coucher/réveil
-    await _updateLabels(_inBedTime, _outBedTime, false); // Met à jour les étiquettes
+    await _updateLabels(
+        _inBedTime, _outBedTime, false); // Met à jour les étiquettes
   }
 
   Future<void> _loadUserName() async {
@@ -82,17 +85,35 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
 
   Future<void> _loadUserAge() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    String birthDateString = prefs.getString('birthDate')!;
+    DateTime birthDate = DateTime.parse(birthDateString);
+    int storedAge = prefs.getInt('age')!;
+    int calculatedAge = _calculateAge(birthDate);
+
+    if (storedAge != calculatedAge) {
+      await prefs.setInt('age', calculatedAge);
+    }
+
     setState(() {
-      _userAge = prefs.getInt('age') ?? 18;
+      _userAge = calculatedAge;
     });
-    print("user Age : $_userAge");
   }
 
+
+
+  int _calculateAge(DateTime birthDate) {
+    DateTime today = DateTime.now();
+    int age = today.year - birthDate.year;
+    if (today.month < birthDate.month ||
+        (today.month == birthDate.month && today.day < birthDate.day)) {
+      age--;
+    }
+    return age;
+  }
 
   void loadAlarms() {
     setState(() {
       alarms = Alarm.getAlarms();
-      //alarms.sort((a, b) => a.dateTime.isBefore(b.dateTime) ? 0 : 1);
     });
   }
 
@@ -103,7 +124,8 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
 
     setState(() {
       _inBedTime = PickedTime(h: bedTimeInMin ~/ 60, m: bedTimeInMin % 60);
-      _outBedTime = PickedTime(h: wakeUpTimeInMin ~/ 60, m: wakeUpTimeInMin % 60);
+      _outBedTime =
+          PickedTime(h: wakeUpTimeInMin ~/ 60, m: wakeUpTimeInMin % 60);
     });
   }
 
@@ -127,14 +149,15 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
         backgroundColor: AppColors.secondary,
         builder: (context) {
           return FractionallySizedBox(
-            heightFactor: 0.75,
+            heightFactor: 0.76,
             child: ExampleAlarmEditScreen(
               alarmSettings: settings,
               username: _userName,
               outBedTime: _outBedTime,
               updateTimeBeforeAlarm: (alarmTime) {
                 setState(() {
-                  _outBedTime = PickedTime(h: alarmTime.hour, m: alarmTime.minute);
+                  _outBedTime =
+                      PickedTime(h: alarmTime.hour, m: alarmTime.minute);
                   _timeBeforeAlarm = alarmTime;
                 });
               },
@@ -167,6 +190,8 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
     }
   }
 
+
+
   @override
   void initState() {
     super.initState();
@@ -178,6 +203,7 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
     subscription?.cancel();
     super.dispose();
   }
+
   List ringtones = [];
 
   @override
@@ -214,7 +240,7 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
           ),
           actions: [
             //TODO : Delete this IconButton
-            IconButton.filledTonal(
+            /*IconButton.filledTonal(
                 onPressed: () => {
                       Navigator.pushReplacement(
                           context,
@@ -225,7 +251,7 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
                 icon: const Icon(
                   Icons.account_circle_rounded,
                   color: AppColors.mainTextColor2,
-                )),
+                )),*/
             Padding(
               padding: const EdgeInsets.only(right: 10),
               child: ClipPath(
@@ -242,10 +268,11 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
                   ),
                   child: IconButton(
                       onPressed: () => {
+                        HapticFeedback.selectionClick(),
                             Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (context) => SettingsPage())),
+                                    builder: (context) => const SettingsPage())),
                           },
                       highlightColor: Colors.transparent,
                       icon: const Icon(Icons.settings_rounded,
@@ -280,17 +307,7 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
                 children: [
                   Column(
                     children: [
-                      ScrollHaptics(
-                        heavyHapticsAtEdgeEnabled: true,
-                        // TODO : Add hapticEffectDuringScroll
-                        child: SingleChildScrollView(
-                          child: DateTimeLoopBuilder(timeUnit: TimeUnit.days,
-                          builder: ( context,  value, child) {
-                            return  HorizontalDayPicker();
-                            },
-                          ),
-                        ),
-                      ),
+                      const HorizontalCalendar(),
                       TimeScheduleWidget(
                           inBedTime: _inBedTime,
                           outBedTime: _outBedTime,
@@ -304,49 +321,12 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
                           intervalBedTime: intervalBedTime,
                           isAlarmSet: alarms.isEmpty,
                           updateLabels: _updateLabels),
-                             alarms.isNotEmpty ? Padding(
-                              padding: const EdgeInsets.all(10.0),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Container(
-                                      height: 2, // Hauteur du trait
-                                      decoration: BoxDecoration(
-                                        color: AppColors.blueTextColor, // Couleur du trait
-                                        borderRadius: BorderRadius.circular(50),
-                                      ),
-                                      margin: const EdgeInsets.symmetric(
-                                          horizontal:
-                                              15), // Marge horizontale entre le trait et le texte
-                                    ),
-                                  ),
-                                  DateTimeLoopBuilder(
-                                      timeUnit: TimeUnit.minutes,
-                                      builder: (context, dateTime, child) {
-                                        return Text(
-                                          _timeToAlarm(_timeBeforeAlarm),
-                                          style: const TextStyle(
-                                            color: AppColors.blueTextColor,
-                                            fontSize: 15,
-                                          ),
-                                        );
-                                      }
-                                  ),
-                                  Expanded(
-                                    child: Container(
-                                      height: 2, // Hauteur du trait
-                                      decoration: BoxDecoration(
-                                        color: AppColors.blueTextColor, // Couleur du trait
-                                        borderRadius: BorderRadius.circular(50),
-                                      ),
-                                      margin: const EdgeInsets.symmetric(
-                                          horizontal:
-                                              15), // Marge horizontale entre le trait et le texte
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ) : Container(),
+                      SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.04,
+                        child: alarms.isNotEmpty
+                            ? Center(child: _buildTimeBeforeAlarm())
+                            : Container(),
+                      ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -387,12 +367,10 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
                         ),
                       ),
                       child: Container(
-                          //height: MediaQuery.of(context).size.height * 0.31,
                           height: MediaQuery.of(context).size.height * 0.23,
                           width: MediaQuery.of(context).size.width * 0.94,
                           decoration: const BoxDecoration(
                             color: AppColors.secondary,
-                            // TODO : Neuromorphism
                           ),
                           child: alarms.isNotEmpty
                               ? ListView.separated(
@@ -400,19 +378,27 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
                                   separatorBuilder: (context, index) =>
                                       const Divider(height: 1),
                                   itemBuilder: (context, index) {
-                                    return alarmWidgetUi(
+                                    return AlarmWidgetUi(
                                         key: Key(alarms[index].id.toString()),
-                                        height: MediaQuery.of(context).size.height * 0.23,
+                                        height:
+                                            MediaQuery.of(context).size.height *
+                                                0.23,
                                         title: TimeOfDay(
                                           hour: alarms[index].dateTime.hour,
                                           minute: alarms[index].dateTime.minute,
                                         ).format(context),
-                                        ringtoneName: getAlarmNameFromPath(alarms[index].assetAudioPath),
-                                        onPressed: () => navigateToAlarmScreen(alarms[index]),
+                                        ringtoneName: getAlarmNameFromPath(
+                                            alarms[index].assetAudioPath),
+                                        onPressed: () => navigateToAlarmScreen(
+                                            alarms[index]),
                                         onDeleted: () {
+                                          HapticFeedback.lightImpact();
                                           Alarm.stop(alarms[index].id)
                                               .then((_) => loadAlarms());
-                                          ble_utils.sendMessageToDevice( connectedDevice, timeCharacteristicUUID, null.toString());
+                                          BleUtils.sendMessageToDevice(
+                                              connectedDevice,
+                                              timeCharacteristicUUID,
+                                              null.toString());
                                         },
                                         sendEsp: () {
                                           setState(() {
@@ -421,30 +407,11 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
                                         });
                                   },
                                 )
-                              : GestureDetector(
+                              : AnimatedInkWell(
                                   onTap: () => navigateToAlarmScreen(null),
-                                  child: Center(
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                        const Icon(Icons.add_alarm_rounded,
-                                            size: 40, color: AppColors.blueTextColor),
-                                        //TODO : change text style
-                                        Text(
-                                          "Pas d'alarme",
-                                          style: GoogleFonts.roboto(
-                                            color: AppColors.blueTextColor,
-                                            fontSize: 25,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
                                 )),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -452,6 +419,53 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
         ),
       ),
     );
+  }
+
+  Padding _buildTimeBeforeAlarm() {
+    return Padding(
+                            padding: const EdgeInsets.all(10.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: 2, // Hauteur du trait
+                                    decoration: BoxDecoration(
+                                      color: AppColors
+                                          .blueTextColor, // Couleur du trait
+                                      borderRadius: BorderRadius.circular(50),
+                                    ),
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal:
+                                            15), // Marge horizontale entre le trait et le texte
+                                  ),
+                                ),
+                                DateTimeLoopBuilder(
+                                    timeUnit: TimeUnit.minutes,
+                                    builder: (context, dateTime, child) {
+                                      return Text(
+                                        _timeToAlarm(_timeBeforeAlarm),
+                                        style: const TextStyle(
+                                          color: AppColors.blueTextColor,
+                                          fontSize: 15,
+                                        ),
+                                      );
+                                    }),
+                                Expanded(
+                                  child: Container(
+                                    height: 2, // Hauteur du trait
+                                    decoration: BoxDecoration(
+                                      color: AppColors
+                                          .blueTextColor, // Couleur du trait
+                                      borderRadius: BorderRadius.circular(50),
+                                    ),
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal:
+                                            15), // Marge horizontale entre le trait et le texte
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
   }
 
   Widget _timeWidget(BuildContext context, String title, PickedTime time,
@@ -467,13 +481,15 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
               minute: time.m,
             ),
           ).then(
-                (selectedTime) {
+            (selectedTime) {
               setState(() {
                 if (selectedTime != null) {
                   if (title == 'Couché') {
-                    _inBedTime = PickedTime(h: selectedTime.hour, m: selectedTime.minute);
+                    _inBedTime = PickedTime(
+                        h: selectedTime.hour, m: selectedTime.minute);
                   } else {
-                    _outBedTime = PickedTime(h: selectedTime.hour, m: selectedTime.minute);
+                    _outBedTime = PickedTime(
+                        h: selectedTime.hour, m: selectedTime.minute);
                   }
                 }
               });
@@ -482,8 +498,7 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
           );
         }
       },
-
-    child: SizedBox(
+      child: SizedBox(
         width: 150.0,
         height: 104.0,
         child: CustomPaint(
@@ -502,27 +517,27 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: arrowDirection == ArrowDirection.left
                       ? [
-                    Text(
-                      title,
-                      style: GoogleFonts.roboto(
-                        color: AppColors.blueTextColor,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    icon,
-                  ]
+                          Text(
+                            title,
+                            style: GoogleFonts.roboto(
+                              color: AppColors.blueTextColor,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          icon,
+                        ]
                       : [
-                    icon,
-                    Text(
-                      title,
-                      style: GoogleFonts.roboto(
-                        color: AppColors.blueTextColor,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
+                          icon,
+                          Text(
+                            title,
+                            style: GoogleFonts.roboto(
+                              color: AppColors.blueTextColor,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
                 ),
                 Text(
                   '${intl.NumberFormat('00').format(time.h)}:${intl.NumberFormat('00').format(time.m)}',
@@ -539,20 +554,33 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
     );
   }
 
-  Future<void> _updateLabels(PickedTime init, PickedTime end, bool? isDisableRange) async {
+  Future<void> _updateLabels(
+      PickedTime init, PickedTime end, bool? isDisableRange) async {
+
+    // Vérifiez les anciennes valeurs pour la comparaison
+    PickedTime? oldInBedTime = _inBedTime;
+    PickedTime? oldOutBedTime = _outBedTime;
+
     _inBedTime = init;
     _outBedTime = end;
     int hoursDifference = _outBedTime.h - _inBedTime.h;
     int minutesDifference = _outBedTime.m - _inBedTime.m;
+
+    if (((oldInBedTime.h != init.h || oldInBedTime.m != init.m)) ||
+        ((oldOutBedTime.h != end.h || oldOutBedTime.m != end.m))) {
+      HapticFeedback.selectionClick();
+    }
 
     if (minutesDifference < 0) {
       hoursDifference -= 1;
       minutesDifference += 60;
     }
 
-    if (hoursDifference < 0 || (hoursDifference == 0 && minutesDifference < 0)) {
+    if (hoursDifference < 0 ||
+        (hoursDifference == 0 && minutesDifference < 0)) {
       // Si l'heure de fin est antérieure à l'heure de début, ou si les heures sont égales mais les minutes de fin sont antérieures
-      hoursDifference += 24; // Ajouter 24 heures pour obtenir la différence sur une journée complète
+      hoursDifference +=
+          24; // Ajouter 24 heures pour obtenir la différence sur une journée complète
     }
 
     setState(() {
@@ -564,16 +592,14 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
         age: _userAge,
       );
       _isSleepGoal = validRange!;
-      _saveIntervalBedTime(_inBedTime, _outBedTime );
+      _saveIntervalBedTime(_inBedTime, _outBedTime);
     });
   }
 
   String _timeToAlarm(DateTime alarmTime) {
     DateTime now = DateTime.now();
-    DateTime actualTime = now.copyWith(
-        second: 0,
-        millisecond: 0,
-        microsecond: 0);
+    DateTime actualTime =
+        now.copyWith(second: 0, millisecond: 0, microsecond: 0);
 
     // Si l'heure de l'alarme est passée pour aujourd'hui, ajoute une journée complète
     if (alarmTime.isBefore(actualTime)) {
@@ -605,11 +631,39 @@ class _ExampleAlarmHomeScreenState extends State<AlarmHomeScreen> {
   String getAlarmNameFromPath(String path) {
     // Utilisez la classe File pour extraire le nom du fichier à partir du chemin
     File file = File(path);
-    String fileName = file.path.split('/').last; // Séparez le chemin et récupérez le dernier élément
-    String alarmName = fileName.split('.').first.replaceAll('ACH_', '').replaceAll('_', ' '); // Séparez le nom du fichier et supprimez l'extension
+    String fileName = file.path
+        .split('/')
+        .last; // Séparez le chemin et récupérez le dernier élément
+    String alarmName = fileName
+        .split('.')
+        .first
+        .replaceAll('ACH_', '')
+        .replaceAll(
+            '_', ' '); // Séparez le nom du fichier et supprimez l'extension
     return alarmName;
   }
+}
 
+class HorizontalCalendar extends StatelessWidget {
+  const HorizontalCalendar({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ScrollHaptics(
+      heavyHapticsAtEdgeEnabled: true,
+      // TODO : Add hapticEffectDuringScroll
+      child: SingleChildScrollView(
+        child: DateTimeLoopBuilder(
+          timeUnit: TimeUnit.days,
+          builder: (context, value, child) {
+            return HorizontalDayPicker();
+          },
+        ),
+      ),
+    );
+  }
 }
 
 void _saveIntervalBedTime(PickedTime bedTime, PickedTime wakeUpTime) async {
@@ -624,8 +678,6 @@ void _saveIntervalBedTime(PickedTime bedTime, PickedTime wakeUpTime) async {
   await prefs.setInt('wakeUpTime', wakeUpTimeInMin);
 }
 
-
-
 bool validateSleepGoal({
   required PickedTime intervalBedTime,
   ClockTimeFormat clockTimeFormat = ClockTimeFormat.twentyFourHours,
@@ -638,22 +690,20 @@ bool validateSleepGoal({
   // Déterminer l'intervalle de sommeil en fonction de l'âge
   if (age >= 6 && age <= 13) {
     // Intervalle de sommeil recommandé pour les jeunes enfants
-    return (9 *60<= sleepTime && sleepTime <= 11*60);
+    return (9 * 60 <= sleepTime && sleepTime <= 11 * 60);
   } else if (age >= 14 && age < 18) {
     // Intervalle de sommeil recommandé pour les enfants d'âge scolaire
-    return (8*60<= sleepTime && sleepTime <= 10*60);
+    return (8 * 60 <= sleepTime && sleepTime <= 10 * 60);
   } else if (age >= 18 && age <= 64) {
     // Intervalle de sommeil recommandé pour les adolescents
-    return (7*60<=sleepTime && sleepTime <= 9*60);
+    return (7 * 60 <= sleepTime && sleepTime <= 9 * 60);
   } else if (age > 64) {
-  // Intervalle de sommeil recommandé pour les adolescents
-  return (7*60<= sleepTime && sleepTime <= 8*60);
-  }
-  else {
+    // Intervalle de sommeil recommandé pour les adolescents
+    return (7 * 60 <= sleepTime && sleepTime <= 8 * 60);
+  } else {
     return false;
   }
 }
-
 
 enum ArrowDirection {
   left,

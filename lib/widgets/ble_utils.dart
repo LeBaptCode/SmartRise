@@ -2,7 +2,7 @@
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
-class ble_utils {
+class BleUtils {
   static Future<void> sendMessageToDevice(BluetoothDevice? device, Guid characteristicId, String message) async {
     if (device == null) {
       print('Erreur: Aucun appareil Bluetooth n\'a été spécifié.');
